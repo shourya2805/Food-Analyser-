@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Food Nutrient Analyzer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+      color: #1a1a1a;
+    }
+
+    .app { width: 100%; max-width: 660px; }
+
+    .header { text-align: center; margin-bottom: 2rem; }
+    .header h1 { font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .header p { font-size: 14px; color: #666; margin-top: 6px; }
+
+    .camera-card {
+      background: #fff;
+      border: 1px solid #e5e5e0;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .video-container {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #111;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    #video { width: 100%; height: 100%; object-fit: cover; display: none; }
+    #canvas { display: none; }
+    #captured-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: #888;
+    }
+    .placeholder i { font-size: 52px; }
+    .placeholder span { font-size: 14px; }
+
+    .btn-row { display: flex; gap: 10px; }
+
+    .btn {
+      flex: 1;
+      padding: 11px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn:hover { background: #f5f5f0; }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+    }
+    .btn-primary:hover { background: #333; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    .loading-state {
+      background: #fff;
+      border: 1px solid #e5e5e0;
+      border-radius: 16px;
+      padding: 3rem;
+      text-align: center;
+      display: none;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .spinner {
+      width: 34px; height: 34px;
+      border: 2px solid #e5e5e0;
+      border-top-color: #1a1a1a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: #666; }
+
+    /* Parsed results card */
+    .results-card {
+      background: #fff;
+      border: 1px solid #e5e5e0;
+      border-radius: 16px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      margin-bottom: 1.5rem;
+    }
+
+    .results-header {
+      background: #f5f5f0;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #e5e5e0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .results-header h2 { font-size: 16px; font-weight: 600; }
+
+    .food-name {
+      padding: 1.25rem;
+      border-bottom: 1px solid #f0f0eb;
+    }
+    .food-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: 4px; }
+    .food-title { font-size: 20px; font-weight: 600; }
+    .food-sub { font-size: 13px; color: #888; margin-top: 3px; }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid #f0f0eb;
+    }
+    .metric {
+      padding: 1rem;
+      text-align: center;
+      border-right: 1px solid #f0f0eb;
+    }
+    .metric:last-child { border-right: none; }
+    .metric-val { font-size: 22px; font-weight: 600; }
+    .metric-unit { font-size: 11px; color: #aaa; }
+    .metric-label { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .nutrient-rows { padding: 0.75rem 1.25rem; border-bottom: 1px solid #f0f0eb; }
+    .nutrient-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      font-size: 14px;
+      border-bottom: 1px solid #f5f5f0;
+    }
+    .nutrient-row:last-child { border-bottom: none; }
+    .nutrient-name { color: #666; }
+    .nutrient-val { font-weight: 500; }
+
+    .health-insight {
+      padding: 1rem 1.25rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .insight-badge {
+      font-size: 12px;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .badge-healthy { background: #e8f5e2; color: #2d6a10; }
+    .badge-moderate { background: #fef3e2; color: #875f0b; }
+    .badge-indulgent { background: #fdecea; color: #a02020; }
+    .insight-text { font-size: 14px; color: #666; line-height: 1.6; }
+
+    /* Full Analysis */
+    .raw-result {
+      background: #fff;
+      border: 1px solid #e5e5e0;
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: none;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .raw-result h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Markdown rendering */
+    .markdown-body { font-size: 14px; line-height: 1.75; color: #333; }
+    .markdown-body .md-step {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #1a1a1a;
+      margin: 1.25rem 0 0.5rem;
+      text-transform: uppercase;
+    }
+    .markdown-body .md-step:first-child { margin-top: 0; }
+    .markdown-body hr {
+      border: none;
+      border-top: 1px solid #e5e5e0;
+      margin: 1rem 0;
+    }
+    .markdown-body ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .markdown-body li {
+      padding: 3px 0 3px 1.1em;
+      position: relative;
+      color: #444;
+    }
+    .markdown-body li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: #aaa;
+      font-weight: 700;
+    }
+    .markdown-body strong { color: #1a1a1a; font-weight: 600; }
+    .markdown-body p { margin: 0.25rem 0; color: #555; }
+    .markdown-body .md-intro { color: #888; font-size: 13px; margin-bottom: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1><i class="ti ti-bowl"></i> Food Nutrient Analyzer</h1>
+    <p>Capture a photo of your food to get a full nutritional breakdown</p>
+  </div>
+
+  <div class="camera-card">
+    <div class="video-container">
+      <div class="placeholder" id="placeholder">
+        <i class="ti ti-camera"></i>
+        <span>Camera preview will appear here</span>
+      </div>
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <img id="captured-img" alt="Captured food" />
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="btn-start" onclick="startCamera()">
+        <i class="ti ti-camera"></i> Start camera
+      </button>
+      <button class="btn btn-primary" id="btn-capture" onclick="captureAndAnalyze()" disabled>
+        <i class="ti ti-camera-selfie"></i> Capture &amp; analyze
+      </button>
+      <button class="btn" id="btn-retake" onclick="retake()" style="display:none">
+        <i class="ti ti-refresh"></i> Retake
+      </button>
+    </div>
+    <div class="status" id="status">Click "Start camera" to begin</div>
+  </div>
+
+  <div class="loading-state" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Analyzing nutritional content with Gemini AI...</div>
+  </div>
+
+  <div class="results-card" id="results-card">
+    <div class="results-header">
+      <i class="ti ti-chart-bar"></i>
+      <h2>Nutritional Analysis Results</h2>
+    </div>
+    <div class="food-name">
+      <div class="food-label">Identified food</div>
+      <div class="food-title" id="res-name">—</div>
+      <div class="food-sub" id="res-sub">—</div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-val" id="res-cal">—</div>
+        <div class="metric-unit">kcal</div>
+        <div class="metric-label">Calories</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="res-protein">—</div>
+        <div class="metric-unit">g</div>
+        <div class="metric-label">Protein</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="res-carbs">—</div>
+        <div class="metric-unit">g</div>
+        <div class="metric-label">Carbs</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="res-fat">—</div>
+        <div class="metric-unit">g</div>
+        <div class="metric-label">Fat</div>
+      </div>
+    </div>
+    <div class="nutrient-rows">
+      <div class="nutrient-row"><span class="nutrient-name">Fiber</span><span class="nutrient-val" id="res-fiber">—</span></div>
+      <div class="nutrient-row"><span class="nutrient-name">Sugar</span><span class="nutrient-val" id="res-sugar">—</span></div>
+      <div class="nutrient-row"><span class="nutrient-name">Sodium</span><span class="nutrient-val" id="res-sodium">—</span></div>
+      <div class="nutrient-row"><span class="nutrient-name">Vitamins</span><span class="nutrient-val" id="res-vitamins">—</span></div>
+      <div class="nutrient-row"><span class="nutrient-name">Portion size</span><span class="nutrient-val" id="res-portion">—</span></div>
+    </div>
+    <div class="health-insight">
+      <span class="insight-badge badge-moderate" id="res-badge">Moderate</span>
+      <span class="insight-text" id="res-insight">—</span>
+    </div>
+  </div>
+
+  <div class="raw-result" id="raw-result">
+    <h2><i class="ti ti-file-text"></i> Full Analysis</h2>
+    <div class="markdown-body" id="raw-text"></div>
+  </div>
+</div>
+
+<script>
+  let stream = null;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const capturedImg = document.getElementById('captured-img');
+  const placeholder = document.getElementById('placeholder');
+  const btnStart = document.getElementById('btn-start');
+  const btnCapture = document.getElementById('btn-capture');
+  const btnRetake = document.getElementById('btn-retake');
+  const status = document.getElementById('status');
+  const loading = document.getElementById('loading');
+
+  async function startCamera() {
+    try {
+      status.textContent = 'Requesting camera access...';
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      placeholder.style.display = 'none';
+      btnStart.style.display = 'none';
+      btnCapture.disabled = false;
+      status.textContent = 'Camera ready — point at your food and capture!';
+    } catch (e) {
+      status.textContent = 'Camera access denied. Please allow camera permissions.';
+    }
+  }
+
+  async function captureAndAnalyze() {
+    if (!stream) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    capturedImg.src = dataUrl;
+    capturedImg.style.display = 'block';
+    video.style.display = 'none';
+    stream.getTracks().forEach(t => t.stop());
+
+    btnCapture.style.display = 'none';
+    btnRetake.style.display = 'flex';
+    loading.style.display = 'block';
+    document.getElementById('results-card').style.display = 'none';
+    document.getElementById('raw-result').style.display = 'none';
+    status.textContent = 'Sending to Gemini for analysis...';
+
+    try {
+      const response = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl })
+      });
+      const data = await response.json();
+      loading.style.display = 'none';
+
+      if (data.error) {
+        status.textContent = 'Error: ' + data.error;
+        return;
+      }
+
+      document.getElementById('raw-text').innerHTML = renderMarkdown(data.result);
+      document.getElementById('raw-result').style.display = 'block';
+
+      tryParseAndDisplay(data.result);
+      status.textContent = 'Analysis complete!';
+
+    } catch (e) {
+      loading.style.display = 'none';
+      status.textContent = 'Request failed. Is the Flask server running?';
+    }
+  }
+
+  // Strip markdown asterisks and trim
+  function clean(s) {
+    return s ? s.replace(/\*+/g, '').replace(/\s+/g, ' ').trim() : null;
+  }
+
+  function extractNumber(text, regex) {
+    const m = text.match(regex);
+    return m ? parseInt(m[1]) : null;
+  }
+
+  function tryParseAndDisplay(text) {
+    const cal     = extractNumber(text, /calories[^\d\n]*(\d+)/i);
+    const protein = extractNumber(text, /protein[^\d\n]*(\d+)/i);
+    const carbs   = extractNumber(text, /carbohydrates?[^\d\n]*(\d+)/i);
+    const fat     = extractNumber(text, /\bfat[^\d\n]*(\d+)/i);
+    const fiber   = extractNumber(text, /fiber[^\d\n]*(\d+)/i);
+    const sugar   = extractNumber(text, /sugar[^\d\n]*(\d+)/i);
+    const sodium  = extractNumber(text, /sodium[^\d\n]*(\d+)/i);
+
+    // Food name — look for Gemini's "Name the exact food/dish:" line
+    const nameRaw =
+      text.match(/name the exact food[^:\n]*:[*\s]*([^\n*]+)/i) ||
+      text.match(/exact food[^:\n]*:[*\s]*([^\n*]+)/i) ||
+      text.match(/food(?:\/dish)?[^:\n]*:[*\s]*([^\n*]{5,60})/i);
+    const name = nameRaw ? clean(nameRaw[1]) : 'Food item';
+
+    // Cuisine / confidence as subtitle
+    const cuisineMatch = text.match(/cuisine type[^:\n]*:[*\s]*([^\n*]+)/i);
+    const confMatch    = text.match(/confidence level[^:\n]*:[*\s]*([^\n*]+)/i);
+    const subParts = [cuisineMatch && clean(cuisineMatch[1]), confMatch && clean(confMatch[1])].filter(Boolean);
+    const sub = subParts.join(' · ') || '—';
+
+    // Portion — weight in grams or portion size line
+    const portionMatch =
+      text.match(/estimate weight[^:\n]*:[*\s]*([^\n*]+)/i) ||
+      text.match(/weight in grams[^:\n]*:[*\s]*([^\n*]+)/i) ||
+      text.match(/portion size[^:\n]*:[*\s]*([^\n*]+)/i) ||
+      text.match(/approximate(?:ly)?[^:\n]*:[*\s]*([^\n*]+gram[^\n*]+)/i) ||
+      text.match(/(\d+\s*(?:grams?|g)\b[^\n*]{0,40})/i);
+    const portion = portionMatch ? clean(portionMatch[1]) : '—';
+
+    // Vitamins
+    const vitaminMatch = text.match(/vitamins?[^:\n]*:[*\s]*([^\n]+)/i);
+    const vitamins = vitaminMatch ? clean(vitaminMatch[1]) : '—';
+
+    // Health insight — last step
+    const insightMatch =
+      text.match(/health(?:\s+insight)?[^:\n]*:[*\s]*([^\n*]{10,})/i) ||
+      text.match(/(?:key health|warning|benefit)[^:\n]*:[*\s]*([^\n*]+)/i);
+    const insight = insightMatch ? clean(insightMatch[1]) : '—';
+
+    const rating = /indulgent/i.test(text) ? 'Indulgent'
+                 : /\bhealthy\b/i.test(text) ? 'Healthy'
+                 : 'Moderate';
+
+    if (cal || protein || carbs) {
+      document.getElementById('res-name').textContent = name;
+      document.getElementById('res-sub').textContent = sub;
+      document.getElementById('res-cal').textContent = cal ?? '—';
+      document.getElementById('res-protein').textContent = protein != null ? protein + 'g' : '—';
+      document.getElementById('res-carbs').textContent = carbs != null ? carbs + 'g' : '—';
+      document.getElementById('res-fat').textContent = fat != null ? fat + 'g' : '—';
+      document.getElementById('res-fiber').textContent = fiber != null ? fiber + 'g' : '—';
+      document.getElementById('res-sugar').textContent = sugar != null ? sugar + 'g' : '—';
+      document.getElementById('res-sodium').textContent = sodium != null ? sodium + 'mg' : '—';
+      document.getElementById('res-vitamins').textContent = vitamins;
+      document.getElementById('res-portion').textContent = portion;
+      document.getElementById('res-insight').textContent = insight;
+
+      const badge = document.getElementById('res-badge');
+      badge.textContent = rating;
+      badge.className = 'insight-badge ' + (rating === 'Healthy' ? 'badge-healthy' : rating === 'Indulgent' ? 'badge-indulgent' : 'badge-moderate');
+
+      document.getElementById('results-card').style.display = 'block';
+    }
+  }
+
+  function renderMarkdown(text) {
+    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = text.split('\n');
+    const out = [];
+    let inList = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Horizontal rule
+      if (/^-{3,}$/.test(line.trim())) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        out.push('<hr>');
+        continue;
+      }
+
+      // Step headings like **STEP N - TITLE:**
+      if (/^\*\*STEP\s+\d+/i.test(line.trim())) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        const label = esc(line.replace(/\*+/g, '').replace(/:$/, '').trim());
+        out.push(`<div class="md-step">${label}</div>`);
+        continue;
+      }
+
+      // Bullet items (* text or - text or *   text)
+      const bulletMatch = line.match(/^[\*\-]\s+(.*)/);
+      if (bulletMatch) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        const content = formatInline(esc(bulletMatch[1]));
+        out.push(`<li>${content}</li>`);
+        continue;
+      }
+
+      // Close list before any non-bullet line
+      if (inList) { out.push('</ul>'); inList = false; }
+
+      // Empty line
+      if (line.trim() === '') {
+        out.push('');
+        continue;
+      }
+
+      // Intro sentence (first real line before any step)
+      if (i === 0 || (i < 3 && !/\*\*/.test(line))) {
+        out.push(`<p class="md-intro">${esc(line)}</p>`);
+        continue;
+      }
+
+      // Regular paragraph line with inline formatting
+      out.push(`<p>${formatInline(esc(line))}</p>`);
+    }
+
+    if (inList) out.push('</ul>');
+    return out.join('\n');
+  }
+
+  function formatInline(html) {
+    // Bold: **text** or **text:**
+    return html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+
+  function retake() {
+    capturedImg.style.display = 'none';
+    btnRetake.style.display = 'none';
+    btnCapture.style.display = 'flex';
+    btnCapture.disabled = true;
+    btnStart.style.display = 'flex';
+    placeholder.style.display = 'flex';
+    loading.style.display = 'none';
+    document.getElementById('results-card').style.display = 'none';
+    document.getElementById('raw-result').style.display = 'none';
+    status.textContent = 'Click "Start camera" to begin';
+  }
+</script>
+</body>
+</html>
